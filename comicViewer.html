@@ -1,0 +1,220 @@
+<html>
+    <head>
+        <style>
+            .alignLeft {
+
+            }
+            .alignRight {
+                
+            }
+            .flexspacer {
+                display: flex;
+                justify-content: space-between;
+                width: 100%;
+            }
+            #viewerContent {
+                height: 100%;
+                /*display: inline-flex;*/
+            }
+            #viewer {
+                height: 80%;
+            }
+            #txtLink {
+                width: 70%;
+                display: inline-block;
+            }
+            #lblLink {
+                display: inline-block;
+                width: 15%;
+            }
+            .currPageInfo {
+                width: 100%;
+            }
+            .fullpage {
+                height: 95%;
+            }
+
+        </style>
+        <script src="https://code.jquery.com/jquery-3.2.1.js"></script>
+        <script>
+            var startURL = window.location.href;
+            if(typeof URLSearchParams != "undefined") {
+                var url = new URL(startURL);
+                let searchParams = new URLSearchParams(url.search);
+                var comicToStartOn = searchParams.get("comic");
+                var pageToStartOn = parseInt(searchParams.get("page"));
+                if(isNaN(pageToStartOn)) {
+                    pageToStartOn = 1;
+                }
+            }
+            else {
+                var comicToStartOn = "";
+                var pageToStartOn = 1;
+                console.log("Unsupported browser, use Chrome/Firefox/Safari/Opera for URLs to work");
+            }
+            var currentPage = 1; //should be 1-> comic number
+            var currentComic = "default"; // should not end in a /!
+            if(comicToStartOn) {
+                currentComic = comicToStartOn;
+            }
+
+            // CHANGE THIS
+            var comicFolder = "comics/"; // Should end in a /!
+            
+            var savedComicInfo = {};
+
+            function processComicInfo(response) {
+                result = response.split(/\r?\n/);
+                for(let i = 0; i < result.length; i++) {
+                    let line = result[i].split("|");
+                    let lineComicName = line[0];
+                    let lineComicPages = parseInt(line[1],10);
+                    savedComicInfo[lineComicName] = lineComicPages;
+                }
+                populateComics();
+                resetComic();
+                currentPage = pageToStartOn;
+                setImage();
+            }
+            function resetComic() {
+                console.log("Called");
+                let comicNameRB = document.querySelector('input[name = "comicselection"]:checked');
+                let chosenName = "default";
+                if(comicNameRB == null) {
+                    comicNameRB = document.querySelector('input[name = "comicselection"]'); //get any
+                    comicNameRB.checked = true;
+                }
+                if(comicNameRB != null) {
+                    chosenName = comicNameRB.value;
+                }
+                currentComic = chosenName;
+                currentPage = 1;
+                setImage();
+            }
+            function populateComics() {
+                let comix = getKnownComicNames();
+                let dataList = document.getElementById("comicButtons");
+                let template = "<input type=\"radio\" name=\"comicselection\" onclick=\"resetComic()\" value=\"COMICNAMEHERE\">COMICNAMEHERE</input>";
+                let templateChecked = "<input type=\"radio\" name=\"comicselection\" onclick=\"resetComic()\" value=\"COMICNAMEHERE\" checked>COMICNAMEHERE</input>";
+                function templateFor(cN, isChecked) {
+                    if(isChecked) {
+                        return templateChecked.replace("COMICNAMEHERE", cN).replace("COMICNAMEHERE", cN);
+                    }
+                    else {
+                        return template.replace("COMICNAMEHERE", cN).replace("COMICNAMEHERE", cN);
+                    }
+                }
+                let fullList = "";
+                let startURLSplit = startURL.split("/");
+                let lookingFor = comicToStartOn;
+                for(let i = 0; i < comix.length; i++) {
+                    fullList = fullList + "\n" + templateFor(comix[i], comix[i] == lookingFor);
+                }
+                fullList = fullList + "\n";
+                dataList.innerHTML = fullList;
+            }
+
+            function getKnownComicNames() {
+                return Object.keys(savedComicInfo);
+            }
+
+            // Page scripts go here
+            function readyFn() {
+                // This will run only after the page is loaded
+                setImage();
+                document.onkeydown = checkKey;
+                $.get(comicFolder + "info.txt",processComicInfo);
+            }
+
+            function nextPage() {
+                let mp = getMaxPages();
+                if(isNaN(mp) || currentPage < mp) { 
+                    currentPage+=1;
+                }
+                setImage();
+            }
+
+            function prevPage() {
+                if(currentPage > 1) {
+                    currentPage-=1;
+                }
+                setImage();
+            }
+
+            function getMaxPages() {
+                if(getKnownComicNames().includes(currentComic)) {
+                    return savedComicInfo[currentComic];
+                }
+                else {
+                    return NaN;
+                }
+            }
+
+            function getCurrentLink() {
+                return startURL.split("?")[0] + "?comic=" + currentComic + "&page=" + currentPage;
+            }
+
+            function setImage() {
+                $("#viewer")[0].src = getCurrentComicPageSrc();
+                if(getKnownComicNames().includes(currentComic)) {
+                    $("#pageNumberLabel")[0].innerText = "" + currentPage + " / " + savedComicInfo[currentComic];
+                }
+                else {
+                    $("#pageNumberLabel")[0].innerText = "" + currentPage + " / ???";
+                }
+                $("#pageNumberLabel")[0].innerText += "     (You can change with left/right arrows)"
+                $("#txtLink")[0].value = getCurrentLink();
+            }
+            
+            function getCurrentComicPageSrc() {
+                return comicFolder + currentComic + "/page" + currentPage + ".jpg";
+            }
+
+            function checkKey(e) {
+
+                e = e || window.event;
+
+                if (e.keyCode == '38') {
+                    // up arrow
+                }
+                else if (e.keyCode == '40') {
+                    // down arrow
+                }
+                else if (e.keyCode == '37') {
+                    // left arrow
+                    prevPage();
+                }
+                else if (e.keyCode == '39') {
+                    // right arrow
+                    nextPage();
+                }
+            }
+
+            $( document ).ready( readyFn );
+        </script>
+    </head>
+    <body>
+        <center>
+            <div class="fullpage">
+                <div class="flexspacer">
+                    <button class="alignLeft" onclick="prevPage()">Prev Page</button>
+                    <div id="viewerContent">
+                            <div class="currPageInfo">
+                                <p id="pageNumberLabel"></p>
+                                <span>
+                                <p id="lblLink">Link to this page</p>
+                                <input type="text" name="txtLink" id="txtLink">
+                                </span>
+                            </div>
+                            <br>
+                        <img id="viewer" src="" alt="This will be a comic">
+                    </div>
+                    <button class="alignRight" onclick="nextPage()">Next Page</button>
+                </div>
+                <div id="comicButtons">
+                    
+                </div>
+            </div>
+        </center>
+    </body>
+</html>

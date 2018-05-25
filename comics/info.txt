@@ -1,0 +1,3 @@
+madoka|2
+notmadoka|2
+example|4
